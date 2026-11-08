@@ -73,6 +73,9 @@ jobs:
           if [ -n "$CONTRIBUTIONS_API" ]; then
             "$RUNNER_TEMP/venv/bin/python" -m pipeline.fetch_contributions "$CONTRIBUTIONS_API" "$RUNNER_TEMP/contributions.json"
             contributions=(--contributions "$RUNNER_TEMP/contributions.json")
+            # Edits made through the edit page and by agents. Same rule: a failure stops the build.
+            "$RUNNER_TEMP/venv/bin/python" -m pipeline.fetch_edits "$CONTRIBUTIONS_API" "$RUNNER_TEMP/edits.json"
+            contributions+=(--edits "$RUNNER_TEMP/edits.json")
           fi
           "$RUNNER_TEMP/venv/bin/python" -m pipeline.build --input "$export_file" "${checks[@]}" "${contributions[@]}" --same-stations data/same-stations.json --editor data/editor.json --now-playing "${wikidata[@]}" "${radioarg[@]}" --out "$GITHUB_WORKSPACE" --dist "$RUNNER_TEMP/dist"
           "$RUNNER_TEMP/venv/bin/python" tools/validate_dataset.py "$GITHUB_WORKSPACE" "$RUNNER_TEMP/dist"
