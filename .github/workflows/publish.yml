@@ -42,6 +42,8 @@ jobs:
         run: '"$RUNNER_TEMP/venv/bin/python" -m unittest discover -s tests -t .'
       - name: Build
         working-directory: .moonbase
+        env:
+          CONTRIBUTIONS_API: ${{ vars.CONTRIBUTIONS_API }}
         run: |
           export_file=$("$RUNNER_TEMP/venv/bin/python" -m pipeline.fetch "$RUNNER_TEMP/source")
           # Measures are optional: without them, the build keeps the last known values.
@@ -51,7 +53,14 @@ jobs:
           else
             echo "::warning::Radio Browser checker measures unavailable, keeping the last known values"
           fi
-          "$RUNNER_TEMP/venv/bin/python" -m pipeline.build --input "$export_file" "${checks[@]}" --out "$GITHUB_WORKSPACE" --dist "$RUNNER_TEMP/dist"
+          # Stations added by installations. Once the API is configured, a failure stops the
+          # build: without them, every contributed station would be retired.
+          contributions=()
+          if [ -n "$CONTRIBUTIONS_API" ]; then
+            "$RUNNER_TEMP/venv/bin/python" -m pipeline.fetch_contributions "$CONTRIBUTIONS_API" "$RUNNER_TEMP/contributions.json"
+            contributions=(--contributions "$RUNNER_TEMP/contributions.json")
+          fi
+          "$RUNNER_TEMP/venv/bin/python" -m pipeline.build --input "$export_file" "${checks[@]}" "${contributions[@]}" --out "$GITHUB_WORKSPACE" --dist "$RUNNER_TEMP/dist"
           "$RUNNER_TEMP/venv/bin/python" tools/validate_dataset.py "$GITHUB_WORKSPACE" "$RUNNER_TEMP/dist"
       - name: Stage
         run: |
