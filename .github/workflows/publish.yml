@@ -68,7 +68,7 @@ jobs:
             "$RUNNER_TEMP/venv/bin/python" -m pipeline.fetch_contributions "$CONTRIBUTIONS_API" "$RUNNER_TEMP/contributions.json"
             contributions=(--contributions "$RUNNER_TEMP/contributions.json")
           fi
-          "$RUNNER_TEMP/venv/bin/python" -m pipeline.build --input "$export_file" "${checks[@]}" "${contributions[@]}" --same-stations data/same-stations.json "${wikidata[@]}" --out "$GITHUB_WORKSPACE" --dist "$RUNNER_TEMP/dist"
+          "$RUNNER_TEMP/venv/bin/python" -m pipeline.build --input "$export_file" "${checks[@]}" "${contributions[@]}" --same-stations data/same-stations.json --editor data/editor.json "${wikidata[@]}" --out "$GITHUB_WORKSPACE" --dist "$RUNNER_TEMP/dist"
           "$RUNNER_TEMP/venv/bin/python" tools/validate_dataset.py "$GITHUB_WORKSPACE" "$RUNNER_TEMP/dist"
       - name: Stage
         run: |
