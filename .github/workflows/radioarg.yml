@@ -1,0 +1,63 @@
+name: radioarg
+
+# Once a month, collect the facts radioarg.net lists about stations (name, country, town,
+# stream, the station's own website), check that each stream plays, and keep them as the
+# asset of the release "radioarg", which the daily build reads. robots.txt is obeyed.
+
+on:
+  schedule:
+    - cron: "23 4 3 * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: radioarg
+  cancel-in-progress: false
+
+jobs:
+  fetch:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 180
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: 12moon-open/moonbase
+          path: .moonbase
+          persist-credentials: false
+      - name: Install ffprobe
+        run: sudo apt-get install -y -q --no-install-recommends ffmpeg >/dev/null
+      - name: Fetch
+        working-directory: .moonbase
+        run: python3 -m pipeline.fetch_radioarg "$RUNNER_TEMP/radioarg.json.gz"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: radioarg
+          path: ${{ runner.temp }}/radioarg.json.gz
+          if-no-files-found: error
+          retention-days: 3
+
+  publish:
+    needs: fetch
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
+        with:
+          name: radioarg
+          path: in
+      - name: Release
+        run: |
+          if gh release view radioarg --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release upload radioarg in/radioarg.json.gz --clobber --repo "$GITHUB_REPOSITORY"
+          else
+            gh release create radioarg in/radioarg.json.gz --latest=false --title "radioarg.net stations" \
+              --notes "Facts about stations listed by radioarg.net, with streams checked to play. Refreshed every month. Read by the daily build." --repo "$GITHUB_REPOSITORY"
+          fi

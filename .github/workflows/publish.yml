@@ -54,6 +54,12 @@ jobs:
             gh release download wikidata --pattern wikidata.json.gz --dir "$RUNNER_TEMP" --repo "$GITHUB_REPOSITORY"
             wikidata=(--wikidata "$RUNNER_TEMP/wikidata.json.gz")
           fi
+          # Stations listed by radioarg.net, streams checked. Same rule as Wikidata.
+          radioarg=()
+          if gh release view radioarg --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release download radioarg --pattern radioarg.json.gz --dir "$RUNNER_TEMP" --repo "$GITHUB_REPOSITORY"
+            radioarg=(--radioarg "$RUNNER_TEMP/radioarg.json.gz")
+          fi
           # Measures are optional: without them, the build keeps the last known values.
           checks=()
           if checks_file=$("$RUNNER_TEMP/venv/bin/python" -m pipeline.fetch_checks "$RUNNER_TEMP/checks"); then
@@ -68,7 +74,7 @@ jobs:
             "$RUNNER_TEMP/venv/bin/python" -m pipeline.fetch_contributions "$CONTRIBUTIONS_API" "$RUNNER_TEMP/contributions.json"
             contributions=(--contributions "$RUNNER_TEMP/contributions.json")
           fi
-          "$RUNNER_TEMP/venv/bin/python" -m pipeline.build --input "$export_file" "${checks[@]}" "${contributions[@]}" --same-stations data/same-stations.json --editor data/editor.json "${wikidata[@]}" --out "$GITHUB_WORKSPACE" --dist "$RUNNER_TEMP/dist"
+          "$RUNNER_TEMP/venv/bin/python" -m pipeline.build --input "$export_file" "${checks[@]}" "${contributions[@]}" --same-stations data/same-stations.json --editor data/editor.json "${wikidata[@]}" "${radioarg[@]}" --out "$GITHUB_WORKSPACE" --dist "$RUNNER_TEMP/dist"
           "$RUNNER_TEMP/venv/bin/python" tools/validate_dataset.py "$GITHUB_WORKSPACE" "$RUNNER_TEMP/dist"
       - name: Stage
         run: |
