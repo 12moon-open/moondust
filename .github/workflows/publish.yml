@@ -44,8 +44,16 @@ jobs:
         working-directory: .moonbase
         env:
           CONTRIBUTIONS_API: ${{ vars.CONTRIBUTIONS_API }}
+          GH_TOKEN: ${{ github.token }}
         run: |
           export_file=$("$RUNNER_TEMP/venv/bin/python" -m pipeline.fetch "$RUNNER_TEMP/source")
+          # Wikidata matches. Once the weekly release exists, a failed download stops the
+          # build: without it, every matched station would lose its Wikidata facts.
+          wikidata=()
+          if gh release view wikidata --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release download wikidata --pattern wikidata.json.gz --dir "$RUNNER_TEMP" --repo "$GITHUB_REPOSITORY"
+            wikidata=(--wikidata "$RUNNER_TEMP/wikidata.json.gz")
+          fi
           # Measures are optional: without them, the build keeps the last known values.
           checks=()
           if checks_file=$("$RUNNER_TEMP/venv/bin/python" -m pipeline.fetch_checks "$RUNNER_TEMP/checks"); then
@@ -60,7 +68,7 @@ jobs:
             "$RUNNER_TEMP/venv/bin/python" -m pipeline.fetch_contributions "$CONTRIBUTIONS_API" "$RUNNER_TEMP/contributions.json"
             contributions=(--contributions "$RUNNER_TEMP/contributions.json")
           fi
-          "$RUNNER_TEMP/venv/bin/python" -m pipeline.build --input "$export_file" "${checks[@]}" "${contributions[@]}" --same-stations data/same-stations.json --out "$GITHUB_WORKSPACE" --dist "$RUNNER_TEMP/dist"
+          "$RUNNER_TEMP/venv/bin/python" -m pipeline.build --input "$export_file" "${checks[@]}" "${contributions[@]}" --same-stations data/same-stations.json "${wikidata[@]}" --out "$GITHUB_WORKSPACE" --dist "$RUNNER_TEMP/dist"
           "$RUNNER_TEMP/venv/bin/python" tools/validate_dataset.py "$GITHUB_WORKSPACE" "$RUNNER_TEMP/dist"
       - name: Stage
         run: |
